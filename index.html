@@ -1,0 +1,1493 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>PyCraft Launcher</title>
+  <style>
+    :root{
+      --primary: #2ea044;
+      --primary-strong: #1f7a34;
+      --bg-page: #0b0d0f;
+      --bg-sidebar: #081013;
+      --bg-surface: #0f1316;
+      --muted-surface: #0b1012;
+      --text-main: #e6eef1;
+      --text-muted: #9fb0b5;
+      --accent: #9adba6;
+      --danger: #ff6b6b;
+    }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      background: var(--bg-page);
+      /* use the chute texture tiled behind the dark theme for more game-texture presence */
+      background-image: url('/chute.png');
+      background-repeat: repeat;
+      background-size: 220px 220px;
+      color: var(--text-main);
+      overflow: hidden;
+    }
+
+    .launcher-container {
+      display: flex;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    /* Sidebar Styles */
+    .sidebar {
+      width: 260px;
+      background: linear-gradient(180deg, var(--bg-sidebar), #071014);
+      color: var(--text-main);
+      display: flex;
+      flex-direction: column;
+      padding: 20px 0;
+      box-shadow: 4px 0 18px rgba(0,0,0,0.6);
+      z-index: 10;
+    }
+
+    .sidebar-header {
+      padding: 0 20px 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      margin-bottom: 20px;
+    }
+
+    /* Replace text title with a hue-shifted logo image */
+    .sidebar-logo {
+      display: block;
+      width: 160px;
+      height: auto;
+      /* changed to cyan tint for the main top logo */
+      filter: hue-rotate(200deg) saturate(1.10) brightness(1.02);
+      -webkit-filter: hue-rotate(200deg) saturate(1.10) brightness(1.02);
+      margin: 6px 0;
+    }
+
+    .version-list {
+      flex-grow: 1;
+      overflow-y: auto;
+      padding-bottom: 12px;
+    }
+
+    .version-item {
+      padding: 12px 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      transition: background 0.15s, border-color 0.15s;
+      border-left: 4px solid transparent;
+      color: var(--text-main);
+    }
+
+    .version-item:hover {
+      background: rgba(255,255,255,0.02);
+    }
+
+    .version-item.active {
+      background: rgba(46,160,68,0.08);
+      border-left-color: var(--primary);
+    }
+
+    .version-icon {
+      width: 28px;
+      height: 28px;
+      background: rgba(255,255,255,0.04);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: bold;
+      color: var(--text-main);
+      box-shadow: inset 0 -2px 0 rgba(0,0,0,0.4);
+    }
+
+    /* small snapshot logo — hue-shifted to match the previous top-logo tint (greenish) */
+    .version-snapshot-logo {
+      width: 22px;
+      height: 22px;
+      object-fit: contain;
+      filter: hue-rotate(150deg) saturate(1.05) brightness(1.02);
+      -webkit-filter: hue-rotate(150deg) saturate(1.05) brightness(1.02);
+      border-radius: 4px;
+    }
+
+    /* Content Area Styles */
+    .main-content {
+      flex-grow: 1;
+      background: linear-gradient(180deg, var(--bg-surface), #0c1113);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow-y: auto;
+      color: var(--text-main);
+    }
+
+    .hero-section {
+      position: relative;
+      width: 100%;
+      height: 400px;
+      background: #000;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+    }
+
+    video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      filter: saturate(0.95) contrast(0.95) brightness(0.85);
+      background: #000;
+    }
+
+    .overlay {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 28px 40px;
+      background: linear-gradient(transparent, rgba(5,8,10,0.85));
+      color: var(--text-main);
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+
+    .overlay h2 {
+      margin: 0 0 6px 0;
+      color: var(--text-main);
+      font-size: 20px;
+      letter-spacing: 0.4px;
+    }
+
+    .overlay p {
+      margin: 0;
+      color: var(--text-muted);
+      font-size: 13px;
+      max-width: 620px;
+    }
+
+    .play-btn {
+      /* use the leaves texture as the visual background for the install button */
+      background-image: url('/leaves.png');
+      background-size: cover;
+      background-position: center;
+      color: #0a0f08; /* dark text to contrast the bright leaf texture */
+      border: none;
+      padding: 12px 44px;
+      font-size: 18px;
+      font-weight: 700;
+      cursor: pointer;
+      border-radius: 8px;
+      box-shadow: 0 6px 0 rgba(0,0,0,0.5);
+      transition: transform 0.08s ease, box-shadow 0.08s ease;
+      /* subtle overlay to keep text readable */
+      position: relative;
+      overflow: hidden;
+    }
+
+    .play-btn:active {
+      transform: translateY(2px);
+      box-shadow: 0 3px 0 rgba(0,0,0,0.5);
+    }
+
+    .play-btn:disabled {
+      background: #333;
+      box-shadow: 0 4px 0 #111;
+      cursor: not-allowed;
+    }
+
+    .details-section {
+      padding: 32px 40px;
+      max-width: 980px;
+      margin: 0 auto;
+    }
+
+    .requirements {
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      padding: 18px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.04);
+      margin-top: 20px;
+      color: var(--text-muted);
+    }
+
+    .requirements h3 { margin-top: 0; color: var(--danger); font-size: 16px; }
+
+    .logo-container {
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    .logo-img { max-width: 200px; filter: drop-shadow(0 6px 14px rgba(0,0,0,0.8)); }
+
+    .hi-footer {
+      display: flex;
+      justify-content: center;
+      padding: 20px;
+      opacity: 0.9;
+      background: transparent;
+    }
+
+    .hi-footer img { width: 80px; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.6)); border-radius: 6px; }
+
+    /* Music Toggle */
+    .music-toggle {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: rgba(0,0,0,0.5);
+      border: 1px solid rgba(255,255,255,0.2);
+      padding: 8px 12px;
+      border-radius: 20px;
+      color: var(--text-main);
+      font-size: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      z-index: 100;
+      backdrop-filter: blur(4px);
+      transition: background 0.2s;
+    }
+
+    .music-toggle:hover {
+      background: rgba(255,255,255,0.1);
+    }
+
+    /* Text tweaks */
+    code {
+      background: rgba(255,255,255,0.03);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    h3 { color: var(--text-main); }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 6px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.12); }
+
+    /* Snapshot warning banner */
+    .snapshot-warning {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%) translateY(140%);
+      bottom: 18px;
+      background: linear-gradient(90deg, #ffcc66, #ff8a66);
+      color: #111;
+      padding: 12px 18px;
+      border-radius: 10px;
+      font-weight: 700;
+      box-shadow: 0 8px 30px rgba(255,140,102,0.12);
+      max-width: 920px;
+      width: calc(100% - 80px);
+      text-align: center;
+      opacity: 0;
+      pointer-events: none;
+      transform-origin: bottom center;
+      transition: transform 550ms cubic-bezier(.2,.9,.2,1), opacity 380ms ease;
+      z-index: 12;
+    }
+
+    .snapshot-warning.show {
+      transform: translateX(-50%) translateY(0%);
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .snapshot-warning .pulse {
+      display: inline-block;
+      animation: pulse 1.6s infinite;
+      padding-left: 8px;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.03); opacity: 0.9; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <button class="music-toggle" id="musicToggle">
+    <span id="musicIcon">🔈</span> Music: Off
+  </button>
+
+  <div class="launcher-container">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <img src="pycraftlogo.png" alt="PyCraft" class="sidebar-logo" />
+      </div>
+      <div class="version-list" id="versionList">
+        <div class="version-item active" data-version="release">
+          <div class="version-icon" style="background:#3c8527">R</div>
+          <div>
+            <div style="font-weight:bold">Release v0.1</div>
+            <div style="font-size:12px; color:#aaa">Stable</div>
+          </div>
+        </div>
+        <div class="version-item" data-version="snapshot">
+          <div class="version-icon" style="background:transparent">
+            <img src="pycraftlogo.png" alt="Snapshot" class="version-snapshot-logo" />
+          </div>
+          <div>
+            <div style="font-weight:bold">Snapshot v0.1</div>
+            <div style="font-size:12px; color:#aaa">Experimental Beta</div>
+          </div>
+        </div>
+
+        <div class="version-item" data-version="release_sivu">
+          <div class="version-icon" style="background:#5a8b3a">S</div>
+          <div>
+            <div style="font-weight:bold">Release v0.1 (Sivu)</div>
+            <div style="font-size:12px; color:#aaa">Adds Sivu ore</div>
+          </div>
+        </div>
+
+        <!-- Owner tab (hidden by default) -->
+        <div class="version-item" id="ownerTab" data-version="owner" style="display:none">
+          <div class="version-icon" style="background:#665500">O</div>
+          <div>
+            <div style="font-weight:bold">Owner</div>
+            <div style="font-size:12px; color:#aaa">Admin Tools</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <section class="hero-section">
+        <video id="player" autoplay loop muted>
+          <source src="/0203.mov" type="video/mp4">
+        </video>
+        <div class="overlay">
+          <div>
+            <h2 id="viewTitle">Release v0.1</h2>
+            <p id="viewDesc">The official debut of PyCraft. Explore, build, and survive in the stone-age block world.</p>
+          </div>
+          <button class="play-btn" id="downloadBtn">INSTALL</button>
+        </div>
+
+        <!-- Snapshot warning (animated) -->
+        <div class="snapshot-warning" id="snapshotWarning" aria-hidden="true">
+          since this is a snapshot it could have fps issues, bugs, and a lot of things. play with caution! 
+          <span class="pulse">⚠️</span>
+        </div>
+      </section>
+
+      <section class="details-section">
+        <div class="logo-container">
+            <img src="pycraftlogo.png" alt="PyCraft Logo" class="logo-img" id="mainLogo" />
+        </div>
+
+        <div class="requirements">
+          <h3>SYSTEM REQUIREMENTS</h3>
+          <ul style="margin: 0; padding-left: 20px;">
+            <li>Python 3.9+ (Essential)</li>
+            <li>Run <code>pip install ursina pillow</code> in your terminal</li>
+            <li>Desktop OS (Windows/macOS/Linux)</li>
+            <li><strong>NO MOBILE SUPPORT</strong></li>
+          </ul>
+        </div>
+
+        <div style="margin-top:30px;">
+          <h3 id="changelogHeader">LATEST NEWS</h3>
+          <div id="changelogPreview" style="white-space: pre-wrap; color: #444; line-height: 1.6;">
+            Loading changelog...
+          </div>
+        </div>
+
+        <!-- Owner panel (only visible to owner user) -->
+        <div id="ownerPanel" style="display:none; margin-top:20px; background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.005)); padding:12px; border-radius:8px; border:1px solid rgba(255,255,255,0.03);">
+          <h3 style="margin:6px 0 10px 0;">Connected Users (Owner)</h3>
+          <div id="ownerUserList" style="display:flex;flex-direction:column;gap:8px; max-height:120px; overflow:auto; padding-right:8px;"></div>
+
+          <hr style="border:none;border-top:1px solid rgba(255,255,255,0.03); margin:12px 0;" />
+
+          <h3 style="margin:6px 0 10px 0;">Join / Disconnect Records</h3>
+          <div id="joinRecords" style="display:flex;flex-direction:column;gap:8px; max-height:160px; overflow:auto; padding-right:8px; color:var(--text-muted); font-size:13px;">
+            <!-- join records will be inserted here -->
+            <div style="opacity:0.7">Loading records...</div>
+          </div>
+        </div>
+
+        <div class="hi-footer">
+          <img src="/hi.PNG" alt="hi" />
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script type="module">
+    import JSZip from "https://esm.sh/jszip@3.10.1";
+
+    const downloadBtn = document.getElementById('downloadBtn');
+    const versionItems = document.querySelectorAll('.version-item');
+    const viewTitle = document.getElementById('viewTitle');
+    const viewDesc = document.getElementById('viewDesc');
+    const changelogPreview = document.getElementById('changelogPreview');
+    const changelogHeader = document.getElementById('changelogHeader');
+    const musicToggle = document.getElementById('musicToggle');
+    const musicIcon = document.getElementById('musicIcon');
+
+    let currentVersion = 'release';
+
+    // --- Background Music ---
+    const bgMusic = new Audio('/SWEDEN.wav');
+    bgMusic.loop = true;
+    bgMusic.volume = 0.3;
+    let musicPlaying = false;
+
+    musicToggle.addEventListener('click', () => {
+      if (musicPlaying) {
+        bgMusic.pause();
+        musicIcon.textContent = '🔈';
+        musicToggle.innerHTML = '<span id="musicIcon">🔈</span> Music: Off';
+      } else {
+        bgMusic.play().catch(e => console.error("Autoplay blocked:", e));
+        musicIcon.textContent = '🔊';
+        musicToggle.innerHTML = '<span id="musicIcon">🔊</span> Music: On';
+      }
+      musicPlaying = !musicPlaying;
+    });
+
+    // Start music on first interaction if possible
+    document.addEventListener('click', () => {
+      if (!musicPlaying) {
+        bgMusic.play().then(() => {
+          musicPlaying = true;
+          musicToggle.innerHTML = '<span id="musicIcon">🔊</span> Music: On';
+        }).catch(() => {});
+      }
+    }, { once: true });
+
+    const versionData = {
+      release: {
+        title: "Release v0.1",
+        desc: "The official debut of PyCraft. Explore, build, and survive in the stone-age block world.",
+        changelog: `CHANGELOG1 - GAME RELEASE!!! :O\n\nbasically uhh\nthis is a main flat world.\n\nand basically we have stone\ngrass\nruby\nand GOLD!\n\ntheres no survival mode yet\nonly creative!\n\nanyways.\nyou go do thing and play game yes yes\n\naLSO\n aLSO\n when you open up MY  game\n you can see epic hous`
+      },
+      snapshot: {
+        title: "Snapshot v0.1",
+        desc: "A sneak peek into upcoming features. Includes Bricks, Cracked Bricks, and the mysterious Sivu ore. Glow effects enabled!",
+        changelog: `SNAPSHOT 0.1 - THE SHINY UPDATE\n\n- Added Bricks and Cracked Bricks!\n- Added Sivu Ore (Cyan-ish).\n- Implemented dynamic block glowing (Sivu, Gold, Ruby).\n- Added pycraftlogo.png to assets.\n- Updated world generation and glass transparency.\n- Still no survival, but now it looks cooler!`
+      },
+      release_sivu: {
+        title: "Release v0.1 (Sivu)",
+        desc: "Release build with the Sivu ore added (no special lighting).",
+        changelog: `RELEASE v0.1 (SIVU) - MINOR UPDATE\n\n- Adds Sivu ore to the release build (visual texture only, no snapshot lighting/glow).\n- Same stable release features otherwise.`
+      }
+    };
+
+    function updateView() {
+      // Provide a safe fallback when versionData[currentVersion] is undefined (e.g., "owner")
+      const data = versionData[currentVersion] || {
+        title: currentVersion.charAt(0).toUpperCase() + currentVersion.slice(1),
+        desc: '',
+        changelog: ''
+      };
+
+      viewTitle.textContent = data.title;
+      viewDesc.textContent = data.desc;
+      changelogHeader.textContent = `WHAT'S NEW IN ${String(data.title).toUpperCase()}`;
+      changelogPreview.textContent = data.changelog;
+
+      // Snapshot warning show/hide
+      const warn = document.getElementById('snapshotWarning');
+      if (!warn) return;
+      if (currentVersion === 'snapshot') {
+        // ensure visible (add class after a tick for transition)
+        warn.setAttribute('aria-hidden', 'false');
+        requestAnimationFrame(() => {
+          warn.classList.add('show');
+        });
+      } else {
+        warn.classList.remove('show');
+        warn.setAttribute('aria-hidden', 'true');
+      }
+    }
+
+    updateView();
+
+    versionItems.forEach(item => {
+      item.addEventListener('click', () => {
+        versionItems.forEach(i => i.classList.remove('active'));
+        item.classList.add('active');
+        currentVersion = item.dataset.version;
+        updateView();
+      });
+    });
+
+    // --- Websim Owner Panel + Join Logging (appears only for @Goldy_FNaF) ---
+    (async () => {
+      // Websim socket may not be present in all environments; guard gracefully.
+      if (!window.WebsimSocket) return;
+
+      try {
+        const room = new WebsimSocket();
+        await room.initialize();
+
+        // Persist a "join" record each time a client connects via room.onmessage
+        // and log to console for live visibility.
+        room.onmessage = async (event) => {
+          const data = event.data;
+          try {
+            if (data && data.type === 'connected') {
+              console.log(`Websim: client connected -> id=${data.clientId} username=${data.username}`);
+              // Create a persistent record of the join event
+              try {
+                await room.collection('join').create({
+                  message: `${data.username} connected`,
+                  clientId: data.clientId,
+                  username: data.username,
+                });
+              } catch (dbErr) {
+                console.warn('Failed to save join record:', dbErr);
+              }
+            } else if (data && data.type === 'disconnected') {
+              console.log(`Websim: client disconnected -> id=${data.clientId} username=${data.username}`);
+              try {
+                await room.collection('join').create({
+                  message: `${data.username} disconnected`,
+                  clientId: data.clientId,
+                  username: data.username,
+                });
+              } catch (dbErr) {
+                console.warn('Failed to save disconnect record:', dbErr);
+              }
+            }
+          } catch (e) {
+            console.error('Error handling room.onmessage event:', e);
+          }
+        };
+
+        const ownerTab = document.getElementById('ownerTab');
+        const ownerPanel = document.getElementById('ownerPanel');
+        const ownerUserList = document.getElementById('ownerUserList');
+
+        function renderPeers(peers) {
+          ownerUserList.innerHTML = '';
+          Object.keys(peers).forEach(id => {
+            const p = peers[id];
+            const el = document.createElement('div');
+            el.style.display = 'flex';
+            el.style.alignItems = 'center';
+            el.style.gap = '10px';
+            el.style.padding = '6px';
+            el.style.borderRadius = '6px';
+            el.style.background = 'rgba(255,255,255,0.012)';
+            el.style.fontSize = '13px';
+            el.innerHTML = `
+              <img src="${p.avatarUrl}" alt="${p.username}" style="width:28px;height:28px;border-radius:6px;object-fit:cover;border:1px solid rgba(0,0,0,0.4)" />
+              <div style="display:flex;flex-direction:column">
+                <strong style="font-size:13px;color:var(--text-main)">${p.username}</strong>
+                <span style="font-size:11px;color:var(--text-muted)">id: ${id}</span>
+              </div>
+            `;
+            ownerUserList.appendChild(el);
+          });
+        }
+
+        // Show owner tools only when current user's username matches @Goldy_FNaF (allow with or without leading @)
+        const localPeer = room.peers[room.clientId];
+        const allowedOwnerName = "Goldy_FNaF";
+        function isOwnerUsername(name) {
+          if (!name) return false;
+          return name === allowedOwnerName || name === "@" + allowedOwnerName;
+        }
+
+        if (localPeer && isOwnerUsername(localPeer.username)) {
+          ownerTab.style.display = '';
+          ownerPanel.style.display = '';
+          // make owner tab clickable to switch view
+          ownerTab.addEventListener('click', () => {
+            versionItems.forEach(i => i.classList.remove('active'));
+            ownerTab.classList.add('active');
+            currentVersion = 'owner';
+            updateView();
+            // scroll to details so owner sees the panel
+            document.querySelector('.main-content').scrollTop = 0;
+          });
+          // initial render of peers
+          renderPeers(room.peers);
+
+          // subscribe to peers updates to keep list live
+          room.subscribePresence(() => {
+            renderPeers(room.peers);
+          });
+
+          // --- Join records: fetch existing and subscribe for live updates ---
+          const joinRecordsContainer = document.getElementById('joinRecords');
+
+          async function renderJoinRecords() {
+            try {
+              const records = await room.collection('join').getList();
+              // records are returned newest-to-oldest; show oldest first
+              const list = (records || []).slice().reverse();
+              joinRecordsContainer.innerHTML = '';
+              if (list.length === 0) {
+                joinRecordsContainer.innerHTML = '<div style="opacity:0.7">No join records yet.</div>';
+                return;
+              }
+              list.forEach(rec => {
+                const el = document.createElement('div');
+                el.style.display = 'flex';
+                el.style.flexDirection = 'column';
+                el.style.padding = '6px';
+                el.style.borderRadius = '6px';
+                el.style.background = 'rgba(255,255,255,0.008)';
+                el.innerHTML = `
+                  <div style="font-size:13px;color:var(--text-main);font-weight:600">${rec.username || 'Unknown'}</div>
+                  <div style="font-size:12px;color:var(--text-muted)">${new Date(rec.created_at).toLocaleString()} — ${rec.message || ''}</div>
+                `;
+                joinRecordsContainer.appendChild(el);
+              });
+              // keep scroll at bottom to show newest
+              joinRecordsContainer.scrollTop = joinRecordsContainer.scrollHeight;
+            } catch (e) {
+              console.warn('Failed to load join records:', e);
+              joinRecordsContainer.innerHTML = '<div style="opacity:0.7">Failed to load records.</div>';
+            }
+          }
+
+          // Initial load
+          renderJoinRecords();
+
+          // Subscribe to collection changes (room.collection(...).subscribe returns a function)
+          try {
+            room.collection('join').subscribe(() => {
+              renderJoinRecords();
+            });
+          } catch (e) {
+            // If subscribe isn't supported in this environment, fall back to a polling refresh
+            console.warn('Subscribe to join collection failed, falling back to polling:', e);
+            setInterval(renderJoinRecords, 5000);
+          }
+        } else {
+          // keep hidden for others
+          ownerTab.style.display = 'none';
+          ownerPanel.style.display = 'none';
+        }
+      } catch (err) {
+        console.warn('Websim owner panel initialization failed:', err);
+      }
+    })();
+
+    // Asset Lists
+    const commonImages = [
+      '/chest.png', '/dirt.png', '/chute.png', '/ruby.png', '/gold.png', 
+      '/star.png', '/face.png', '/wood.png', '/chest_open.png', 
+      '/glass.png', '/grass.png', '/leaves.png', '/stone.png', '/teto-teto-world-domination.gif'
+    ];
+
+    const snapshotExtraImages = [
+      '/brick.png', '/cracked_brick.png', 'sivu.png', 'pycraftlogo.png'
+    ];
+
+    const audioAssets = [
+      '/grassdestroy.wav', '/break.wav', '/dundaaaa.wav', '/grassdestroy2.wav', '/explosion.wav', '/beacon.wav'
+    ];
+
+    const releaseScript = `import os, random, json
+from pathlib import Path
+from ursina import *
+from ursina.prefabs.first_person_controller import FirstPersonController
+from ursina.shaders import unlit_shader
+from PIL import Image
+
+app = Ursina()
+
+# --- Window & Performance ---
+window.exit_button.visible = False
+window.fps_counter.enabled = True
+window.color = color.rgb(120, 200, 255)
+Entity.default_shader = unlit_shader
+
+# --- Folders ---
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+TEXTURE_FOLDER = os.path.join(BASE_DIR, "textures")
+SAVE_FOLDER = os.path.join(BASE_DIR, "saves")
+os.makedirs(TEXTURE_FOLDER, exist_ok=True)
+os.makedirs(SAVE_FOLDER, exist_ok=True)
+
+# --- Texture Generation ---
+def generate_texture_file(name, bgcolor, noise_type):
+    path = os.path.join(TEXTURE_FOLDER, f"{name}.png")
+    if not os.path.exists(path):
+        img = Image.new("RGB", (16, 16), bgcolor)
+        pixels = img.load()
+        if noise_type == "chute":
+            for x in range(16):
+                for y in range(16):
+                    if x in (0,1,14,15) or y in (0,1,14,15): pixels[x,y] = (60,60,60)
+        elif noise_type == "wood":
+            for y in range(16):
+                for x in range(16):
+                    d = random.randint(-15, 15)
+                    pixels[x, y] = tuple(max(0, min(255, c + d)) for c in bgcolor)
+        elif noise_type == "grass":
+            for y in range(16):
+                for x in range(16):
+                    d = random.randint(-20, 0)
+                    pixels[x, y] = tuple(max(0, c + d) for c in bgcolor)
+        img.save(path)
+    return path
+
+# Generate Textures
+GRASS_TEX = Texture(generate_texture_file("grass", (50, 140, 50), "grass"))
+STONE_TEX = Texture(generate_texture_file("stone", (140, 140, 140), "stone"))
+GOLD_TEX  = Texture(generate_texture_file("gold", (140, 140, 140), "ore"))
+RUBY_TEX  = Texture(generate_texture_file("ruby", (140, 140, 140), "ore"))
+CHEST_TEX = Texture(generate_texture_file("chest", (120, 80, 40), "wood"))
+CHEST_OPEN_TEX = Texture(generate_texture_file("chest_open", (60, 40, 20), "wood"))
+CHUTE_TEX = Texture(generate_texture_file("chute", (100, 100, 100), "chute"))
+GLASS_TEX = Texture(generate_texture_file("glass", (255, 255, 255), "glass"))
+
+TEX_DICT = {'grass':GRASS_TEX, 'stone':STONE_TEX, 'gold':GOLD_TEX, 'ruby':RUBY_TEX, 'glass':GLASS_TEX, 'chest':CHEST_TEX, 'chute':CHUTE_TEX}
+
+def play_snd(name):
+    try: return Audio(name, loop=False, autoplay=True)
+    except: return None
+
+# --- Classes ---
+voxel_map = {}
+block_list = ['grass', 'stone', 'gold', 'ruby', 'glass', 'chest', 'chute']
+selected_index = 0
+
+class Voxel(Button):
+    def __init__(self, position=(0,0,0), texture=GRASS_TEX, block_type='grass', is_enabled=True, player_built=False, **kwargs):
+        is_glass = block_type == 'glass'
+        is_wire = block_type == 'redstone'
+        
+        super().__init__(
+            parent=scene, position=position, 
+            model='sphere' if is_wire else 'cube', 
+            texture=texture if not is_wire else None, 
+            origin_y=0.5,
+            enabled=is_enabled, 
+            collider='box' if is_enabled else None,
+            highlight_color=color.rgba(255, 255, 255, 50),
+            **kwargs 
+        )
+        
+        if not is_wire:
+            self.color = color.white if not is_glass else color.rgba(255,255,255,100)
+            self.scale = 1.01 if is_glass else 1
+        else:
+            self.color = color.dark_gray
+            self.scale = 0.3
+
+        self.block_type = block_type
+        self.player_built = player_built
+        self.is_powered = False
+        self.pos_key = (int(floor(position[0])), int(floor(position[1])), int(floor(position[2])))
+        voxel_map[self.pos_key] = self
+
+    def power_on(self):
+        if self.is_powered: return
+        self.is_powered = True
+        if self.block_type == 'redstone': self.color = color.red
+        if self.block_type == 'gold': self.check_beacon()
+        
+        for d in ((1,0,0),(-1,0,0),(0,1,0),(0,-1,0),(0,0,1),(0,0,-1)):
+            key = (self.pos_key[0]+d[0], self.pos_key[1]+d[1], self.pos_key[2]+d[2])
+            if key in voxel_map: voxel_map[key].power_on()
+
+    def check_beacon(self):
+        base = 0
+        for x in range(-1, 2):
+            for z in range(-1, 2):
+                p = (self.pos_key[0]+x, self.pos_key[1]-1, self.pos_key[2]+z)
+                if p in voxel_map and voxel_map[p].block_type == 'gold': base += 1
+        if base == 9:
+            play_snd('explosion')
+            for p in list(voxel_map.keys()):
+                if distance(p, self.pos_key) < 6:
+                    destroy(voxel_map[p])
+                    del voxel_map[p]
+
+class Chest(Voxel):
+    def __init__(self, position=(0,0,0), **kwargs):
+        super().__init__(position=position, texture=CHEST_TEX, block_type='chest', **kwargs)
+    def on_click(self): pass
+
+class Lever(Voxel):
+    def __init__(self, **kwargs):
+        super().__init__(texture=None, color=color.gray, block_type='lever', scale=(0.2, 0.6, 0.2), **kwargs)
+        self.active = False
+    def toggle(self):
+        self.active = not self.active
+        self.color = color.green if self.active else color.gray
+        if self.active: self.power_on()
+
+# --- Thrown Item ---
+class ThrownItem(Entity):
+    def __init__(self, position, direction, block_type):
+        super().__init__(
+            model='cube', 
+            texture=TEX_DICT.get(block_type, GRASS_TEX),
+            scale=0.2,
+            position=position,
+            collider='box'
+        )
+        self.direction = direction
+        self.velocity = 20
+        self.block_type = 'item'
+        
+    def update(self):
+        self.position += self.direction * self.velocity * time.dt
+        hit_info = raycast(self.world_position, self.direction, distance=0.5)
+        
+        if hit_info.hit:
+            if hasattr(hit_info.entity, 'block_type'):
+                if hit_info.entity.block_type == 'chute':
+                    others = [v for v in voxel_map.values() if v.block_type == 'chute' and v != hit_info.entity]
+                    if others:
+                        player.position = others[0].position + Vec3(0,1,0)
+                        play_snd('break')
+                
+                if hit_info.entity.block_type != 'item':
+                    destroy(self)
+
+# --- World & Structures ---
+def generate_structure():
+    house_data = [{"pos": [3, 1, 0], "type": "stone"}, {"pos": [2, 1, 0], "type": "stone"}, {"pos": [1, 1, 0], "type": "stone"}, {"pos": [0, 1, 0], "type": "stone"}, {"pos": [0, 1, 1], "type": "stone"}, {"pos": [0, 1, 2], "type": "stone"}, {"pos": [2, 1, 3], "type": "stone"}, {"pos": [1, 1, 3], "type": "stone"}, {"pos": [0, 1, 3], "type": "stone"}, {"pos": [4, 1, 3], "type": "stone"}, {"pos": [4, 1, 2], "type": "stone"}, {"pos": [4, 1, 0], "type": "stone"}, {"pos": [4, 1, 1], "type": "stone"}, {"pos": [4, 2, 1], "type": "stone"}, {"pos": [4, 2, 0], "type": "stone"}, {"pos": [4, 3, 0], "type": "stone"}, {"pos": [4, 3, 1], "type": "stone"}, {"pos": [4, 2, 3], "type": "stone"}, {"pos": [4, 2, 2], "type": "stone"}, {"pos": [4, 3, 3], "type": "stone"}, {"pos": [4, 3, 2], "type": "stone"}, {"pos": [0, 2, 3], "type": "stone"}, {"pos": [1, 2, 3], "type": "stone"}, {"pos": [0, 3, 3], "type": "stone"}, {"pos": [1, 3, 3], "type": "stone"}, {"pos": [2, 2, 3], "type": "stone"}, {"pos": [2, 3, 3], "type": "stone"}, {"pos": [3, 3, 3], "type": "stone"}, {"pos": [0, 2, 0], "type": "stone"}, {"pos": [0, 3, 0], "type": "stone"}, {"pos": [0, 3, 1], "type": "stone"}, {"pos": [0, 3, 2], "type": "stone"}, {"pos": [3, 2, 0], "type": "stone"}, {"pos": [2, 2, 0], "type": "stone"}, {"pos": [1, 2, 0], "type": "stone"}, {"pos": [3, 3, 0], "type": "stone"}, {"pos": [2, 3, 0], "type": "stone"}, {"pos": [1, 3, 0], "type": "stone"}, {"pos": [0, 2, 2], "type": "glass"}, {"pos": [0, 2, 1], "type": "glass"}, {"pos": [3, 0, 1], "type": "ruby"}, {"pos": [3, 0, 2], "type": "ruby"}, {"pos": [3, 0, 3], "type": "ruby"}, {"pos": [1, 0, 2], "type": "ruby"}, {"pos": [1, 0, 1], "type": "ruby"}, {"pos": [2, 0, 2], "type": "ruby"}, {"pos": [2, 0, 1], "type": "ruby"}, {"pos": [1, 1, 1], "type": "gold"}, {"pos": [1, 1, 2], "type": "gold"}, {"pos": [2, 1, 1], "type": "gold"}, {"pos": [1, 2, 1], "type": "gold"}]
+    offset_x, offset_y, offset_z = 10, 0, 14 
+    for block in house_data:
+        pos = (block['pos'][0] + offset_x, block['pos'][1] + offset_y, block['pos'][2] + offset_z)
+        if pos in voxel_map: destroy(voxel_map[pos])
+        Voxel(position=pos, texture=TEX_DICT[block['type']], block_type=block['type'])
+
+def generate_world():
+    for x in range(25):
+        for z in range(25):
+            Voxel(position=(x, 0, z), texture=GRASS_TEX, block_type='grass')
+
+generate_world()
+generate_structure()
+
+player = FirstPersonController(position=(12, 2, 12), speed=5)
+player.cursor.color = color.white
+hotbar_text = Text(text="SELECTED: GRASS", position=(0, -0.45), origin=(0, 0), color=color.black, scale=2)
+
+# --- Controls ---
+def input(key):
+    global selected_index
+    if key == 'left mouse down' and mouse.hovered_entity:
+        v = mouse.hovered_entity
+        if hasattr(v, 'block_type') and v.block_type == 'lever': v.toggle()
+        elif hasattr(v, 'block_type'):
+            play_snd('break')
+            if v.pos_key in voxel_map: del voxel_map[v.pos_key]
+            destroy(v)
+    
+    if key == 'right mouse down' and mouse.hovered_entity:
+        new_pos = mouse.hovered_entity.position + mouse.normal
+        cur = block_list[selected_index]
+        if cur == 'chest': Chest(position=new_pos, player_built=True)
+        elif cur == 'lever': Lever(position=new_pos, player_built=True)
+        elif cur == 'redstone': Voxel(position=new_pos, block_type='redstone', player_built=True)
+        else:
+            Voxel(position=new_pos, texture=TEX_DICT.get(cur, GRASS_TEX), block_type=cur, player_built=True)
+
+    if key == 'q':
+        cur_type = block_list[selected_index]
+        ThrownItem(
+            position=player.camera_pivot.world_position + player.camera_pivot.forward, 
+            direction=player.camera_pivot.forward, 
+            block_type=cur_type
+        )
+
+    if key == 'scroll up': selected_index = (selected_index + 1) % len(block_list)
+    if key == 'scroll down': selected_index = (selected_index - 1) % len(block_list)
+    hotbar_text.text = f"SELECTED: {block_list[selected_index].upper()}"
+    if key == 'escape': quit()
+
+app.run()
+`;
+
+    const releaseSivuScript = `import os, random, json
+from pathlib import Path
+from ursina import *
+from ursina.prefabs.first_person_controller import FirstPersonController
+from ursina.shaders import unlit_shader
+from PIL import Image
+
+app = Ursina()
+
+# --- Window & Performance ---
+window.exit_button.visible = False
+window.fps_counter.enabled = True
+window.color = color.rgb(120, 200, 255)
+Entity.default_shader = unlit_shader
+
+# --- Folders ---
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+TEXTURE_FOLDER = os.path.join(BASE_DIR, "textures")
+SAVE_FOLDER = os.path.join(BASE_DIR, "saves")
+os.makedirs(TEXTURE_FOLDER, exist_ok=True)
+os.makedirs(SAVE_FOLDER, exist_ok=True)
+
+# --- Texture Generation (adds sivu ore texture but no snapshot lighting) ---
+def generate_texture_file(name, bgcolor, noise_type):
+    path = os.path.join(TEXTURE_FOLDER, f"{name}.png")
+    if not os.path.exists(path):
+        img = Image.new("RGB", (16, 16), bgcolor)
+        pixels = img.load()
+        if noise_type == "chute":
+            for x in range(16):
+                for y in range(16):
+                    if x in (0,1,14,15) or y in (0,1,14,15): pixels[x,y] = (60,60,60)
+        elif noise_type == "wood":
+            for y in range(16):
+                for x in range(16):
+                    d = random.randint(-15, 15)
+                    pixels[x, y] = tuple(max(0, min(255, c + d)) for c in bgcolor)
+        elif noise_type == "grass":
+            for y in range(16):
+                for x in range(16):
+                    d = random.randint(-20, 0)
+                    pixels[x, y] = tuple(max(0, c + d) for c in bgcolor)
+        elif noise_type == "ore":
+            for y in range(16):
+                for x in range(16):
+                    d = random.randint(-20, 20)
+                    pixels[x, y] = tuple(max(0, min(255, c + d)) for c in bgcolor)
+                    if random.random() < 0.2:
+                        pixels[x, y] = tuple(max(0, min(255, c + random.randint(40,80))) for c in bgcolor)
+        img.save(path)
+    return path
+
+# Generate Textures (include sivu here)
+GRASS_TEX = Texture(generate_texture_file("grass", (50, 140, 50), "grass"))
+STONE_TEX = Texture(generate_texture_file("stone", (140, 140, 140), "stone"))
+GOLD_TEX  = Texture(generate_texture_file("gold", (140, 140, 140), "ore"))
+RUBY_TEX  = Texture(generate_texture_file("ruby", (140, 140, 140), "ore"))
+SIVU_TEX  = Texture(generate_texture_file("sivu", (100, 255, 255), "ore"))
+CHEST_TEX = Texture(generate_texture_file("chest", (120, 80, 40), "wood"))
+CHEST_OPEN_TEX = Texture(generate_texture_file("chest_open", (60, 40, 20), "wood"))
+CHUTE_TEX = Texture(generate_texture_file("chute", (100, 100, 100), "chute"))
+GLASS_TEX = Texture(generate_texture_file("glass", (255, 255, 255), "glass"))
+
+TEX_DICT = {'grass':GRASS_TEX, 'stone':STONE_TEX, 'gold':GOLD_TEX, 'ruby':RUBY_TEX, 'glass':GLASS_TEX, 'chest':CHEST_TEX, 'chute':CHUTE_TEX, 'sivu':SIVU_TEX}
+
+def play_snd(name):
+    try: return Audio(name, loop=False, autoplay=True)
+    except: return None
+
+# --- Classes ---
+voxel_map = {}
+block_list = ['grass', 'stone', 'gold', 'ruby', 'glass', 'chest', 'chute', 'sivu']
+selected_index = 0
+
+class Voxel(Button):
+    def __init__(self, position=(0,0,0), texture=GRASS_TEX, block_type='grass', is_enabled=True, player_built=False, **kwargs):
+        is_glass = block_type == 'glass'
+        is_wire = block_type == 'redstone'
+        
+        super().__init__(
+            parent=scene, position=position, 
+            model='sphere' if is_wire else 'cube', 
+            texture=texture if not is_wire else None, 
+            origin_y=0.5,
+            enabled=is_enabled, 
+            collider='box' if is_enabled else None,
+            highlight_color=color.rgba(255, 255, 255, 50),
+            **kwargs 
+        )
+        
+        if not is_wire:
+            self.color = color.white if not is_glass else color.rgba(255,255,255,100)
+            self.scale = 1.01 if is_glass else 1
+        else:
+            self.color = color.dark_gray
+            self.scale = 0.3
+
+        self.block_type = block_type
+        self.player_built = player_built
+        self.is_powered = False
+        self.pos_key = (int(floor(position[0])), int(floor(position[1])), int(floor(position[2])))
+        voxel_map[self.pos_key] = self
+
+    def power_on(self):
+        if self.is_powered: return
+        self.is_powered = True
+        if self.block_type == 'redstone': self.color = color.red
+        if self.block_type == 'gold': self.check_beacon()
+        
+        for d in ((1,0,0),(-1,0,0),(0,1,0),(0,-1,0),(0,0,1),(0,0,-1)):
+            key = (self.pos_key[0]+d[0], self.pos_key[1]+d[1], self.pos_key[2]+d[2])
+            if key in voxel_map: voxel_map[key].power_on()
+
+    def check_beacon(self):
+        base = 0
+        for x in range(-1, 2):
+            for z in range(-1, 2):
+                p = (self.pos_key[0]+x, self.pos_key[1]-1, self.pos_key[2]+z)
+                if p in voxel_map and voxel_map[p].block_type == 'gold': base += 1
+        if base == 9:
+            play_snd('explosion')
+            for p in list(voxel_map.keys()):
+                if distance(p, self.pos_key) < 6:
+                    destroy(voxel_map[p])
+                    del voxel_map[p]
+
+class Chest(Voxel):
+    def __init__(self, position=(0,0,0), **kwargs):
+        super().__init__(position=position, texture=CHEST_TEX, block_type='chest', **kwargs)
+    def on_click(self): pass
+
+class Lever(Voxel):
+    def __init__(self, **kwargs):
+        super().__init__(texture=None, color=color.gray, block_type='lever', scale=(0.2, 0.6, 0.2), **kwargs)
+        self.active = False
+    def toggle(self):
+        self.active = not self.active
+        self.color = color.green if self.active else color.gray
+        if self.active: self.power_on()
+
+# --- Thrown Item ---
+class ThrownItem(Entity):
+    def __init__(self, position, direction, block_type):
+        super().__init__(
+            model='cube', 
+            texture=TEX_DICT.get(block_type, GRASS_TEX),
+            scale=0.2,
+            position=position,
+            collider='box'
+        )
+        self.direction = direction
+        self.velocity = 20
+        self.block_type = 'item'
+        
+    def update(self):
+        self.position += self.direction * self.velocity * time.dt
+        hit_info = raycast(self.world_position, self.direction, distance=0.5)
+        
+        if hit_info.hit:
+            if hasattr(hit_info.entity, 'block_type'):
+                if hit_info.entity.block_type == 'chute':
+                    others = [v for v in voxel_map.values() if v.block_type == 'chute' and v != hit_info.entity]
+                    if others:
+                        player.position = others[0].position + Vec3(0,1,0)
+                        play_snd('break')
+                
+                if hit_info.entity.block_type != 'item':
+                    destroy(self)
+
+# --- World & Structures ---
+def generate_structure():
+    house_data = [{"pos": [3, 1, 0], "type": "stone"}, {"pos": [2, 1, 0], "type": "stone"}, {"pos": [1, 1, 0], "type": "stone"}, {"pos": [0, 1, 0], "type": "stone"}, {"pos": [0, 1, 1], "type": "stone"}, {"pos": [0, 1, 2], "type": "stone"}, {"pos": [2, 1, 3], "type": "stone"}, {"pos": [1, 1, 3], "type": "stone"}, {"pos": [0, 1, 3], "type": "stone"}, {"pos": [4, 1, 3], "type": "stone"}, {"pos": [4, 1, 2], "type": "stone"}, {"pos": [4, 1, 0], "type": "stone"}, {"pos": [4, 1, 1], "type": "stone"}, {"pos": [4, 2, 1], "type": "stone"}, {"pos": [4, 2, 0], "type": "stone"}, {"pos": [4, 3, 0], "type": "stone"}, {"pos": [4, 3, 1], "type": "stone"}, {"pos": [4, 2, 3], "type": "stone"}, {"pos": [4, 2, 2], "type": "stone"}, {"pos": [4, 3, 3], "type": "stone"}, {"pos": [4, 3, 2], "type": "stone"}, {"pos": [0, 2, 3], "type": "stone"}, {"pos": [1, 2, 3], "type": "stone"}, {"pos": [0, 3, 3], "type": "stone"}, {"pos": [1, 3, 3], "type": "stone"}, {"pos": [2, 2, 3], "type": "stone"}, {"pos": [2, 3, 3], "type": "stone"}, {"pos": [3, 3, 3], "type": "stone"}, {"pos": [0, 2, 0], "type": "stone"}, {"pos": [0, 3, 0], "type": "stone"}, {"pos": [0, 3, 1], "type": "stone"}, {"pos": [0, 3, 2], "type": "stone"}, {"pos": [3, 2, 0], "type": "stone"}, {"pos": [2, 2, 0], "type": "stone"}, {"pos": [1, 2, 0], "type": "stone"}, {"pos": [3, 3, 0], "type": "stone"}, {"pos": [2, 3, 0], "type": "stone"}, {"pos": [1, 3, 0], "type": "stone"}, {"pos": [0, 2, 2], "type": "glass"}, {"pos": [0, 2, 1], "type": "glass"}, {"pos": [3, 0, 1], "type": "ruby"}, {"pos": [3, 0, 2], "type": "ruby"}, {"pos": [3, 0, 3], "type": "ruby"}, {"pos": [1, 0, 2], "type": "ruby"}, {"pos": [1, 0, 1], "type": "ruby"}, {"pos": [2, 0, 2], "type": "ruby"}, {"pos": [2, 0, 1], "type": "ruby"}, {"pos": [1, 1, 1], "type": "gold"}, {"pos": [1, 1, 2], "type": "gold"}, {"pos": [2, 1, 1], "type": "gold"}, {"pos": [1, 2, 1], "type": "gold"}]
+    offset_x, offset_y, offset_z = 10, 0, 14 
+    for block in house_data:
+        pos = (block['pos'][0] + offset_x, block['pos'][1] + offset_y, block['pos'][2] + offset_z)
+        if pos in voxel_map: destroy(voxel_map[pos])
+        Voxel(position=pos, texture=TEX_DICT[block['type']], block_type=block['type'])
+
+def generate_world():
+    for x in range(25):
+        for z in range(25):
+            Voxel(position=(x, 0, z), texture=GRASS_TEX, block_type='grass')
+
+generate_world()
+generate_structure()
+
+player = FirstPersonController(position=(12, 2, 12), speed=5)
+player.cursor.color = color.white
+hotbar_text = Text(text="SELECTED: GRASS", position=(0, -0.45), origin=(0, 0), color=color.black, scale=2)
+
+# --- Controls ---
+def input(key):
+    global selected_index
+    if key == 'left mouse down' and mouse.hovered_entity:
+        v = mouse.hovered_entity
+        if hasattr(v, 'block_type') and v.block_type == 'lever': v.toggle()
+        elif hasattr(v, 'block_type'):
+            play_snd('break')
+            if v.pos_key in voxel_map: del voxel_map[v.pos_key]
+            destroy(v)
+    
+    if key == 'right mouse down' and mouse.hovered_entity:
+        new_pos = mouse.hovered_entity.position + mouse.normal
+        cur = block_list[selected_index]
+        if cur == 'chest': Chest(position=new_pos, player_built=True)
+        elif cur == 'lever': Lever(position=new_pos, player_built=True)
+        elif cur == 'redstone': Voxel(position=new_pos, block_type='redstone', player_built=True)
+        else:
+            Voxel(position=new_pos, texture=TEX_DICT.get(cur, GRASS_TEX), block_type=cur, player_built=True)
+
+    if key == 'q':
+        cur_type = block_list[selected_index]
+        ThrownItem(
+            position=player.camera_pivot.world_position + player.camera_pivot.forward, 
+            direction=player.camera_pivot.forward, 
+            block_type=cur_type
+        )
+
+    if key == 'scroll up': selected_index = (selected_index + 1) % len(block_list)
+    if key == 'scroll down': selected_index = (selected_index - 1) % len(block_list)
+    hotbar_text.text = f"SELECTED: {block_list[selected_index].upper()}"
+    if key == 'escape': quit()
+
+app.run()
+`;
+
+    const snapshotScript = `import os, random, json
+from pathlib import Path
+from ursina import *
+from ursina.prefabs.first_person_controller import FirstPersonController
+from ursina.shaders import unlit_shader
+from PIL import Image
+
+app = Ursina()
+
+# --- Window & Performance ---
+window.exit_button.visible = False
+window.fps_counter.enabled = True
+window.color = color.rgb(120, 200, 255)
+Entity.default_shader = unlit_shader
+
+# --- Folders ---
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+TEXTURE_FOLDER = os.path.join(BASE_DIR, "textures")
+SAVE_FOLDER = os.path.join(BASE_DIR, "saves")
+os.makedirs(TEXTURE_FOLDER, exist_ok=True)
+os.makedirs(SAVE_FOLDER, exist_ok=True)
+
+# --- Texture Generation ---
+def generate_texture_file(name, bgcolor, noise_type):
+    path = os.path.join(TEXTURE_FOLDER, f"{name}.png")
+    if not os.path.exists(path):
+        img = Image.new("RGB", (16, 16), bgcolor)
+        pixels = img.load()
+        if noise_type == "chute":
+            for x in range(16):
+                for y in range(16):
+                    if x in (0,1,14,15) or y in (0,1,14,15): pixels[x,y] = (60,60,60)
+        elif noise_type == "wood":
+            for y in range(16):
+                for x in range(16):
+                    d = random.randint(-15, 15)
+                    pixels[x, y] = tuple(max(0, min(255, c + d)) for c in bgcolor)
+        elif noise_type == "grass":
+            for y in range(16):
+                for x in range(16):
+                    d = random.randint(-20, 0)
+                    pixels[x, y] = tuple(max(0, c + d) for c in bgcolor)
+        elif noise_type == "brick":
+            for y in range(16):
+                for x in range(16):
+                    d = random.randint(-10, 10)
+                    pixels[x, y] = tuple(max(0, min(255, c + d)) for c in bgcolor)
+                    if y % 4 == 0 or (x + (2 if (y//4)%2 else 0)) % 8 == 0:
+                        pixels[x, y] = (80, 80, 80)
+        elif noise_type == "cracked_brick":
+            for y in range(16):
+                for x in range(16):
+                    d = random.randint(-15, 15)
+                    pixels[x, y] = tuple(max(0, min(255, c + d)) for c in bgcolor)
+                    if y % 4 == 0 or (x + (2 if (y//4)%2 else 0)) % 8 == 0:
+                        pixels[x, y] = (80, 80, 80)
+                    if random.random() < 0.07:
+                        pixels[x, y] = (40, 40, 40)
+        img.save(path)
+    return path
+
+# Generate Textures
+GRASS_TEX = Texture(generate_texture_file("grass", (50, 140, 50), "grass"))
+STONE_TEX = Texture(generate_texture_file("stone", (140, 140, 140), "stone"))
+GOLD_TEX  = Texture(generate_texture_file("gold", (140, 140, 140), "ore"))
+RUBY_TEX  = Texture(generate_texture_file("ruby", (140, 140, 140), "ore"))
+SIVU_TEX  = Texture(generate_texture_file("sivu", (100, 255, 255), "ore"))
+CHEST_TEX = Texture(generate_texture_file("chest", (120, 80, 40), "wood"))
+CHEST_OPEN_TEX = Texture(generate_texture_file("chest_open", (60, 40, 20), "wood"))
+CHUTE_TEX = Texture(generate_texture_file("chute", (100, 100, 100), "chute"))
+GLASS_TEX = Texture(generate_texture_file("glass", (255, 255, 255), "glass"))
+BRICK_TEX = Texture(generate_texture_file("brick", (150, 60, 60), "brick"))
+CRACKED_BRICK_TEX = Texture(generate_texture_file("cracked_brick", (130, 50, 50), "cracked_brick"))
+
+TEX_DICT = {
+    'grass':GRASS_TEX, 'stone':STONE_TEX, 'gold':GOLD_TEX, 'ruby':RUBY_TEX,
+    'sivu':SIVU_TEX, 'glass':GLASS_TEX, 'chest':CHEST_TEX, 'chute':CHUTE_TEX,
+    'brick':BRICK_TEX, 'cracked_brick':CRACKED_BRICK_TEX
+}
+
+def play_snd(name):
+    try: return Audio(name, loop=False, autoplay=True)
+    except: return None
+
+# --- Classes ---
+voxel_map = {}
+block_list = ['grass', 'stone', 'brick', 'cracked_brick', 'gold', 'ruby', 'sivu', 'glass', 'chute']
+selected_index = 0
+
+class Voxel(Button):
+    def __init__(self, position=(0,0,0), texture=GRASS_TEX, block_type='grass', is_enabled=True, player_built=False, **kwargs):
+        is_glass = block_type == 'glass'
+        is_wire = block_type == 'redstone'
+        super().__init__(
+            parent=scene, position=position, 
+            model='sphere' if is_wire else 'cube', 
+            texture=texture if not is_wire else None, 
+            origin_y=0.5,
+            enabled=is_enabled, 
+            collider='box' if is_enabled else None,
+            highlight_color=color.rgba(255, 255, 255, 50),
+            **kwargs 
+        )
+        if not is_wire:
+            if not is_glass:
+                self.color = color.white
+                self.scale = 1
+            else:
+                self.color = color.rgba(255, 255, 255, 90)
+                self.scale = 1.01
+                self.double_sided = True
+        else:
+            self.color = color.dark_gray
+            self.scale = 0.3
+        self.block_type = block_type
+        self.player_built = player_built
+        self.is_powered = False
+        self.pos_key = (int(floor(position[0])), int(floor(position[1])), int(floor(position[2])))
+        voxel_map[self.pos_key] = self
+
+    def power_on(self):
+        if self.is_powered: return
+        self.is_powered = True
+        if self.block_type == 'redstone': self.color = color.red
+        if self.block_type == 'gold': self.check_beacon()
+        for d in ((1,0,0),(-1,0,0),(0,1,0),(0,-1,0),(0,0,1),(0,0,-1)):
+            key = (self.pos_key[0]+d[0], self.pos_key[1]+d[1], self.pos_key[2]+d[2])
+            if key in voxel_map: voxel_map[key].power_on()
+
+    def check_beacon(self):
+        base = 0
+        for x in range(-1, 2):
+            for z in range(-1, 2):
+                p = (self.pos_key[0]+x, self.pos_key[1]-1, self.pos_key[2]+z)
+                if p in voxel_map and voxel_map[p].block_type == 'gold': base += 1
+        if base == 9:
+            play_snd('explosion')
+            for p in list(voxel_map.keys()):
+                if distance(p, self.pos_key) < 6:
+                    destroy(voxel_map[p])
+                    del voxel_map[p]
+
+class Chest(Voxel):
+    def __init__(self, position=(0,0,0), **kwargs):
+        super().__init__(position=position, texture=CHEST_TEX, block_type='chest', **kwargs)
+    def on_click(self): pass
+
+class Lever(Voxel):
+    def __init__(self, **kwargs):
+        super().__init__(texture=None, color=color.gray, block_type='lever', scale=(0.2, 0.6, 0.2), **kwargs)
+        self.active = False
+    def toggle(self):
+        self.active = not self.active
+        self.color = color.green if self.active else color.gray
+        if self.active: self.power_on()
+
+# --- Thrown Item ---
+class ThrownItem(Entity):
+    def __init__(self, position, direction, block_type):
+        super().__init__(model='cube', texture=TEX_DICT.get(block_type, GRASS_TEX), scale=0.2, position=position, collider='box')
+        self.direction = direction
+        self.velocity = 20
+        self.block_type = 'item'
+    def update(self):
+        self.position += self.direction * self.velocity * time.dt
+        hit_info = raycast(self.world_position, self.direction, distance=0.5)
+        if hit_info.hit:
+            if hasattr(hit_info.entity, 'block_type'):
+                if hit_info.entity.block_type == 'chute':
+                    others = [v for v in voxel_map.values() if v.block_type == 'chute' and v != hit_info.entity]
+                    if others:
+                        player.position = others[0].position + Vec3(0,1,0)
+                        play_snd('break')
+                if hit_info.entity.block_type != 'item':
+                    destroy(self)
+
+# --- World & Structures ---
+def generate_structure():
+    house_data = [{"pos": [3, 1, 0], "type": "stone"}, {"pos": [2, 1, 0], "type": "stone"}, {"pos": [1, 1, 0], "type": "stone"}, {"pos": [0, 1, 0], "type": "stone"}, {"pos": [0, 1, 1], "type": "stone"}, {"pos": [0, 1, 2], "type": "stone"}, {"pos": [2, 1, 3], "type": "stone"}, {"pos": [1, 1, 3], "type": "stone"}, {"pos": [0, 1, 3], "type": "stone"}, {"pos": [4, 1, 3], "type": "stone"}, {"pos": [4, 1, 2], "type": "stone"}, {"pos": [4, 1, 0], "type": "stone"}, {"pos": [4, 1, 1], "type": "stone"}, {"pos": [4, 2, 1], "type": "stone"}, {"pos": [4, 2, 0], "type": "stone"}, {"pos": [4, 3, 0], "type": "stone"}, {"pos": [4, 3, 1], "type": "stone"}, {"pos": [4, 2, 3], "type": "stone"}, {"pos": [4, 2, 2], "type": "stone"}, {"pos": [4, 3, 3], "type": "stone"}, {"pos": [4, 3, 2], "type": "stone"}, {"pos": [0, 2, 3], "type": "stone"}, {"pos": [1, 2, 3], "type": "stone"}, {"pos": [0, 3, 3], "type": "stone"}, {"pos": [1, 3, 3], "type": "stone"}, {"pos": [2, 2, 3], "type": "stone"}, {"pos": [2, 3, 3], "type": "stone"}, {"pos": [3, 3, 3], "type": "stone"}, {"pos": [0, 2, 0], "type": "stone"}, {"pos": [0, 3, 0], "type": "stone"}, {"pos": [0, 3, 1], "type": "stone"}, {"pos": [0, 3, 2], "type": "stone"}, {"pos": [3, 2, 0], "type": "stone"}, {"pos": [2, 2, 0], "type": "stone"}, {"pos": [1, 2, 0], "type": "stone"}, {"pos": [3, 3, 0], "type": "stone"}, {"pos": [2, 3, 0], "type": "stone"}, {"pos": [1, 3, 0], "type": "stone"}, {"pos": [0, 2, 2], "type": "glass"}, {"pos": [0, 2, 1], "type": "glass"}, {"pos": [3, 0, 1], "type": "ruby"}, {"pos": [3, 0, 2], "type": "ruby"}, {"pos": [3, 0, 3], "type": "ruby"}, {"pos": [1, 0, 2], "type": "ruby"}, {"pos": [1, 0, 1], "type": "ruby"}, {"pos": [2, 0, 2], "type": "ruby"}, {"pos": [2, 0, 1], "type": "ruby"}, {"pos": [1, 1, 1], "type": "gold"}, {"pos": [1, 1, 2], "type": "gold"}, {"pos": [2, 1, 1], "type": "gold"}, {"pos": [1, 2, 1], "type": "gold"}, {"pos": [2,0,0], "type":"sivu"}]
+    offset_x, offset_y, offset_z = 10, 0, 14 
+    for block in house_data:
+        pos = (block['pos'][0] + offset_x, block['pos'][1] + offset_y, block['pos'][2] + offset_z)
+        if pos in voxel_map: destroy(voxel_map[pos])
+        Voxel(position=pos, texture=TEX_DICT[block['type']], block_type=block['type'])
+
+def generate_world():
+    for x in range(25):
+        for z in range(25):
+            Voxel(position=(x, 0, z), texture=GRASS_TEX, block_type='grass')
+
+generate_world()
+generate_structure()
+
+player = FirstPersonController(position=(12, 2, 12), speed=5)
+player.cursor.color = color.white
+hotbar_text = Text(text="SELECTED: GRASS", position=(0, -0.45), origin=(0, 0), color=color.black, scale=2)
+
+# --- Glowing Aura ---
+GLOW_COLORS = {'sivu': color.cyan, 'gold': color.gold, 'ruby': color.red}
+GLOW_RADIUS = 3
+
+def update_glows():
+    for v in voxel_map.values():
+        if v.block_type in ('glass', 'chest', 'chute', 'redstone'): continue
+        v.color = color.white
+    for glow_block in voxel_map.values():
+        if glow_block.block_type not in GLOW_COLORS: continue
+        gx, gy, gz = glow_block.pos_key
+        for v in voxel_map.values():
+            if v.block_type in ('glass', 'chest', 'chute', 'redstone'): continue
+            vx, vy, vz = v.pos_key
+            dist = ((gx - vx)**2 + (gy - vy)**2 + (gz - vz)**2)**0.5
+            if dist <= GLOW_RADIUS:
+                strength = max(0, 1 - dist / GLOW_RADIUS) * 0.6
+                v.color = lerp(v.color, GLOW_COLORS[glow_block.block_type], strength)
+
+def input(key):
+    global selected_index
+    if key == 'left mouse down' and mouse.hovered_entity:
+        v = mouse.hovered_entity
+        if hasattr(v, 'block_type') and v.block_type == 'lever': v.toggle()
+        elif hasattr(v, 'block_type'):
+            play_snd('break')
+            if v.pos_key in voxel_map: del voxel_map[v.pos_key]
+            destroy(v)
+    if key == 'right mouse down' and mouse.hovered_entity:
+        new_pos = mouse.hovered_entity.position + mouse.normal
+        cur = block_list[selected_index]
+        if cur == 'chest': Chest(position=new_pos, player_built=True)
+        elif cur == 'lever': Lever(position=new_pos, player_built=True)
+        elif cur == 'redstone': Voxel(position=new_pos, block_type='redstone', player_built=True)
+        else: Voxel(position=new_pos, texture=TEX_DICT.get(cur, GRASS_TEX), block_type=cur, player_built=True)
+    if key == 'q':
+        cur_type = block_list[selected_index]
+        ThrownItem(position=player.camera_pivot.world_position + player.camera_pivot.forward, direction=player.camera_pivot.forward, block_type=cur_type)
+    if key == 'scroll up': selected_index = (selected_index + 1) % len(block_list)
+    if key == 'scroll down': selected_index = (selected_index - 1) % len(block_list)
+    hotbar_text.text = f"SELECTED: {block_list[selected_index].upper()}"
+    if key == 'escape': quit()
+
+def update():
+    update_glows()
+
+app.run()
+`;
+
+    async function fetchBinary(path) {
+      // Use absolute path for reliability in some environments
+      const fullPath = path.startsWith('/') ? window.location.origin + path : path;
+      const res = await fetch(fullPath);
+      if (!res.ok) {
+        console.error(`Fetch failed for ${path}: ${res.status} ${res.statusText}`);
+        throw new Error(`Failed to fetch ${path} (${res.status})`);
+      }
+      const buffer = await res.arrayBuffer();
+      // Ensure we have a valid buffer (not an HTML error page text)
+      const uint = new Uint8Array(buffer);
+      // Check for common HTML signature <!DOCTYPE or <html
+      const header = String.fromCharCode(...uint.slice(0, 10));
+      if (header.includes('<!') || header.includes('<h')) {
+          throw new Error(`Fetched ${path} but received an HTML page instead of binary data. Check asset existence.`);
+      }
+      return buffer;
+    }
+
+    downloadBtn.addEventListener('click', async () => {
+      downloadBtn.disabled = true;
+      const originalText = downloadBtn.textContent;
+      downloadBtn.textContent = 'Preparing...';
+
+      // change page background to gold (and hide the tiled texture while preparing)
+      const prevBackgroundImage = document.body.style.backgroundImage;
+      const prevBackground = document.body.style.background;
+      document.body.style.backgroundImage = 'none';
+      document.body.style.background = '#d4af37'; // gold
+
+      try {
+        const zip = new JSZip();
+        const texturesFolder = zip.folder('textures');
+        const soundsFolder = zip.folder('sounds');
+
+        // Images
+        const imagesToInclude = [...commonImages];
+        if (currentVersion === 'snapshot') {
+          imagesToInclude.push(...snapshotExtraImages);
+        }
+        // include sivu texture for the special release build
+        if (currentVersion === 'release_sivu') {
+          imagesToInclude.push('/sivu.png');
+        }
+
+        await Promise.all(imagesToInclude.map(async p => {
+          const ab = await fetchBinary(p);
+          texturesFolder.file(p.split('/').pop(), ab);
+        }));
+
+        // Hi Image (Root)
+        const hiBuffer = await fetchBinary('/hi.PNG');
+        zip.file('hi.PNG', hiBuffer);
+
+        // ICO generation (using face.png)
+        // We provide the icon file in the root. 
+        // Note: OS-level file properties for .py scripts cannot be set within a .zip archive.
+        // User must manually assign icon or use a wrapper/shortcut.
+        try {
+            const faceBuffer = await fetchBinary('/face.png');
+            zip.file('minepy.ico', faceBuffer);
+        } catch (e) {
+            console.warn("Could not pack icon:", e);
+        }
+
+        // Audio (Excluding SWEDEN.wav intentionally)
+        await Promise.all(audioAssets.map(async p => {
+          const ab = await fetchBinary(p);
+          soundsFolder.file(p.split('/').pop(), ab);
+        }));
+
+        // Python Script
+        let script = releaseScript;
+        if (currentVersion === 'snapshot') script = snapshotScript;
+        if (currentVersion === 'release_sivu') script = releaseSivuScript;
+        zip.file('minepy.py', script);
+
+        // Changelog
+        zip.file('changelog.txt', versionData[currentVersion].changelog);
+
+        // Finalize
+        const content = await zip.generateAsync({ type: 'blob' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(content);
+        a.download = `pycraft_${currentVersion}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(a.href);
+
+        downloadBtn.textContent = originalText;
+      } catch (err) {
+        console.error(err);
+        alert('Failed: ' + err.message);
+        downloadBtn.textContent = originalText;
+      } finally {
+        // restore original background and re-enable button
+        document.body.style.backgroundImage = prevBackgroundImage;
+        document.body.style.background = prevBackground || 'var(--bg-page)';
+        downloadBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
